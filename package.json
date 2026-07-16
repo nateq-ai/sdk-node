@@ -9,6 +9,14 @@
     "api"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nateq-ai/sdk-node.git"
+  },
+  "homepage": "https://github.com/nateq-ai/sdk-node#readme",
+  "bugs": {
+    "url": "https://github.com/nateq-ai/sdk-node/issues"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -35,7 +43,7 @@
   },
   "sideEffects": false,
   "scripts": {
-    "build": "tsup",
+    "build": "tsdown",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "check-exports": "attw --pack .",
@@ -44,7 +52,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@types/node": "^26.1.1",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.22.9",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
