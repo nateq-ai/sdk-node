@@ -7,13 +7,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  # The build toolchain sets the floor here, not the SDK: tsdown requires Node
+  # ^22.18 || >=24.11, and vitest requires >=20. That is unrelated to the Node
+  # versions the published package supports at runtime — those are covered by
+  # the `runtime-support` job below.
+  build-and-test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        # The lowest version we claim to support, plus current LTS and latest.
-        node-version: [18, 20, 22]
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v4
 
@@ -31,3 +34,58 @@ jobs:
       # Must run after build: it inspects the packed dist/, so a stale or
       # missing build would otherwise let it pass on the wrong artifacts.
       - run: npm run check-exports
+
+  # package.json claims `engines: node >=18`, but the test runner cannot run on
+  # Node 18, so that claim would otherwise go unverified. Build on a modern
+  # Node, then exercise the real packed tarball on the oldest supported Node.
+  runtime-support:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and pack (modern Node)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm pack --pack-destination /tmp
+
+      - name: Switch to the Node version under test
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install the packed tarball as a real consumer would
+        run: |
+          mkdir -p /tmp/consumer && cd /tmp/consumer
+          echo '{"name":"consumer","version":"1.0.0","private":true}' > package.json
+          npm install /tmp/nateq-sdk-*.tgz
+
+      - name: Smoke test (CommonJS)
+        working-directory: /tmp/consumer
+        run: |
+          node -e "
+            const { Nateq, NateqError } = require('@nateq/sdk');
+            const key = 'tg_test_' + 'a'.repeat(50);
+            const c = new Nateq({ apiKey: key });
+            if (typeof c.emails.send !== 'function') throw new Error('emails.send missing');
+            if (typeof NateqError !== 'function') throw new Error('NateqError missing');
+            if (require('util').inspect(c).includes(key)) throw new Error('API key leaked');
+            console.log('CJS ok on node ' + process.versions.node);
+          "
+
+      - name: Smoke test (ESM)
+        working-directory: /tmp/consumer
+        run: |
+          node --input-type=module -e "
+            import { Nateq } from '@nateq/sdk';
+            const c = new Nateq({ apiKey: 'tg_live_' + 'b'.repeat(50) });
+            if (typeof c.emails.list !== 'function') throw new Error('emails.list missing');
+            console.log('ESM ok on node ' + process.versions.node);
+          "
