@@ -1,0 +1,72 @@
+name: Release
+
+# Push a conventional commit to main and release-please keeps a release PR up to
+# date with the next version + CHANGELOG. Merging that PR tags, creates the
+# GitHub Release, and publishes to npm — all from this one workflow.
+#
+# The publish job lives HERE rather than in a separate `on: release` workflow on
+# purpose: releases created with GITHUB_TOKEN do not trigger other workflows, so
+# a standalone publish workflow would never fire. Gating on release_created is
+# the supported way to do this without a PAT.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required for npm trusted publishing (OIDC) and provenance.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Trusted publishing needs Node >= 22.14 and npm >= 11.5.1; Node 24 is
+          # the first line bundling an npm new enough. Do not lower this without
+          # upgrading npm explicitly.
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      # Must run after build: it inspects the packed dist/, so a stale or
+      # missing build would otherwise pass against the wrong artifacts.
+      - run: npm run check-exports
+
+      # No version/tag check needed — release-please is the one that set both,
+      # so package.json and the tag cannot disagree.
+      #
+      # Auth comes from trusted publishing (OIDC) via id-token above. The npm CLI
+      # prefers OIDC and only falls back to NODE_AUTH_TOKEN, so this env line is
+      # a safety net until the trusted publisher is configured on npmjs.com.
+      # Delete it (and the secret) once trusted publishing is live.
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
