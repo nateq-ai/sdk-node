@@ -13,7 +13,7 @@
     "type": "git",
     "url": "git+https://github.com/nateq-ai/sdk-node.git"
   },
-  "homepage": "https://github.com/nateq-ai/sdk-node#readme",
+  "homepage": "https://developers.nateq.io/sdks/node",
   "bugs": {
     "url": "https://github.com/nateq-ai/sdk-node/issues"
   },
