@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/nateq-ai/sdk-node/compare/v0.2.0...v0.2.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* point package homepage to developers.nateq.io ([6c6df0c](https://github.com/nateq-ai/sdk-node/commit/6c6df0c292cab3f419fe5f228142251b3c4975d2))
+* point package homepage to developers.nateq.io ([263cf56](https://github.com/nateq-ai/sdk-node/commit/263cf56d0ce26f75cf90c8d86fb104c74f5966ed))
+
 ## [0.2.0](https://github.com/nateq-ai/sdk-node/compare/v0.1.0...v0.2.0) (2026-07-17)
 
 
